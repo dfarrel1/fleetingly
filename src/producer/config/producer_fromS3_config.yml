@@ -1,0 +1,9 @@
+# Configuration parameters for Kafka Producer
+port: ec2-34-193-153-112.compute-1.amazonaws.com:9092
+# topics: [cars,users]
+topics: ['cars','users','stream_basic']
+time_buffer: 0.001
+bucket_name: "dlf-taxi-data"
+folder_name: "yellow/2016/"
+file_name: "yellow_tripdata_2016-01.csv"
+data_column_keys: [trip_distance,passenger_count,pickup_latitude,pickup_longitude,dropoff_latitude,dropoff_longitude]
