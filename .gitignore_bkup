@@ -1,0 +1,9 @@
+.DS_Store
+*.DS_Store
+input/
+.tmpstore
+*.dat
+*/target*
+target/
+elasticsearch-hadoop-5.2.1/*
+lib/* 
