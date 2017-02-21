@@ -9,4 +9,5 @@ elasticsearch-hadoop-5.2.1/*
 lib/*
 *metastore_db/*
 *.log
-project/* 
+project/*
+project/ 
