@@ -1,7 +1,7 @@
 package utils
 
 import java.util.Properties
-
+import spray.json._
 import org.apache.kafka.clients.producer.{KafkaProducer, ProducerRecord}
 
 /**
@@ -36,6 +36,11 @@ class SparkKafkaSink(createProducer: () => KafkaProducer[String, String]) extend
   def send(topic: String, partition: Int, key: String, value: String): Unit = {
     producer.send(new ProducerRecord(topic, partition, key, value))
   }
+    
+//  def send(topic: String, partition: Int, key: String, value: spray.json.JsValue): Unit = {
+//    producer.send(new ProducerRecord(topic, partition, key, value))
+//  }
+    
 }
 
 object SparkKafkaSink {

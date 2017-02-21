@@ -28,7 +28,11 @@ import org.json4s._
 import org.json4s.jackson.JsonMethods._
 import org.json4s.JsonDSL._
 import com.codahale.jerkson.Json
-import scala.util.parsing.json.JSON
+import scala.util.parsing.json._
+// import play.api.libs.json._
+import spray.json._
+import DefaultJsonProtocol._ 
+
 
 import org.apache.spark._
 import org.apache.spark.streaming._
@@ -171,16 +175,20 @@ object KMeans {
     output.print()
 
 
-    predictions.foreachRDD { rdd =>
-      val modelString = model.latestModel().clusterCenters
-        .map(c => c.toString.slice(1, c.toString.length-1)).mkString("\n")
-      val predictString = rdd.map(p => p.toString).collect().mkString("\n")
-      val dateString = Calendar.getInstance().getTime.toString.replace(" ", "-").replace(":", "-")
-//      Utils.printToFile(outputDir, dateString + "-model", modelString)
-//      Utils.printToFile(outputDir, dateString + "-predictions", predictString)
-      print(modelString)
-      // print(predictString)
-    }
+    val clustercounts = predFull.map(x => x._2._2).countByValue()
+    clustercounts.print()
+
+
+//     predictions.foreachRDD { rdd =>
+//       val modelString = model.latestModel().clusterCenters
+//         .map(c => c.toString.slice(1, c.toString.length-1)).mkString("\n")
+//       val predictString = rdd.map(p => p.toString).collect().mkString("\n")
+//       val dateString = Calendar.getInstance().getTime.toString.replace(" ", "-").replace(":", "-")
+// //      Utils.printToFile(outputDir, dateString + "-model", modelString)
+// //      Utils.printToFile(outputDir, dateString + "-predictions", predictString)
+//       print(modelString)
+//       // print(predictString)
+//     }
 
 //    // Using Package WriteToKafka
 //    predictions.foreachRDD { rdd =>
@@ -190,14 +198,39 @@ object KMeans {
 //      )
 //    }
 
+predictions.foreachRDD { rdd =>
+      val modelString = model.latestModel().clusterCenters
+        .map(c => c.toString.slice(1, c.toString.length-1))
+      val modelMap = modelString.map(x => Map("lat"->x,
+      "lon"->x))
+      print(modelMap)
+    }
+
+
 //    // Parallelizing Kafka Producer Efficiently
     val kafkaSink = sc.broadcast(SparkKafkaSink(producerConfig))
 
+
+  // val kafkaOutput = predFull.map(x => 
+  //   (x._2._2,"{\"cluster\": %d, \"lat\":%f,\"lon\":%f,\"timestamp\":%s}".format(x._2._2, x._2._1._1, x._2._1._2, x._2._1._3))) // cluster, loc (lat,lon), ts
+  // kafkaOutput.print()
+
+  // val kafkaOutput = predFull.map(x => 
+  //   (x._2._2,("\"{\"cluster\": %d, \"location\": {\"lat\":%f,\"lon\":%f},\"timestamp\":%s}\"".format(x._2._2, x._2._1._1, x._2._1._2, x._2._1._3)).parseJson)) // cluster, loc (lat,lon), ts
+  // kafkaOutput.print()
+
+    val kafkaOutput = predFull.map(x => 
+    (x._2._2,"%s,%s,%s,%s".format(x._2._2, x._2._1._1, x._2._1._2, x._2._1._3))) // cluster, loc (lat,lon), ts
+  kafkaOutput.print()
+
+    // Seq(
+    // """{"user":"helena","commits":98, "month":3, "year":2015}"""
+
 //    send(topic: String, key: String, value: String)
-    val newtopic = "usersnew"
-    output.foreachRDD { rdd =>
+    val newtopic = "usersenriched"
+    kafkaOutput.foreachRDD { rdd =>
       rdd.foreach { message =>
-        kafkaSink.value.send(newtopic,"1", "string_" + message)
+        kafkaSink.value.send(newtopic,message._1.toString, message._2)
       }
     }
 

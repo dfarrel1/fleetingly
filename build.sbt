@@ -24,7 +24,9 @@ libraryDependencies ++= Seq(
 "com.typesafe" % "config" % "1.3.1",
 "com.gilt" % "jerkson_2.11" % "0.6.7",
 "org.apache.kafka" % "kafka_2.11" % "0.8.0",
-"org.apache.kafka" % "kafka-clients" % "0.8.2.1"
+"org.apache.kafka" % "kafka-clients" % "0.8.2.1",
+"io.spray" %%  "spray-json" % "1.3.3"
+//"com.typesafe.play" %% "play-json" % "2.3.4"
 //
 )
     
