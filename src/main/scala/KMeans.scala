@@ -85,8 +85,10 @@ object KMeans {
 
     val ssc = new StreamingContext(conf, Seconds(batchDuration))
     val brokers = ":9092"
-    val topics = "users"
-    val topicsSet = topics.split(",").toSet
+    val u_topics = "users"
+    val u_topicsSet = u_topics.split(",").toSet
+    val c_topics = "cars"
+    val c_topicsSet = c_topics.split(",").toSet
     val sc = ssc.sparkContext
 
 
@@ -117,13 +119,23 @@ object KMeans {
 //    trainingData.print()
 
     // Create direct kafka stream with brokers and topics
-    val kafkaParams = Map[String, String]("metadata.broker.list" -> brokers)
-    val messages = KafkaUtils.createDirectStream[String, String, StringDecoder, StringDecoder](ssc,kafkaParams, topicsSet).map(_._2).repartition(64)
-    val points = messages.map(x => parse(x))
-
-    val parsedEvents = messages.map(JSON.parseFull(_)).map(_.get.asInstanceOf[scala.collection.immutable.Map[String,Any]])
-    val events = parsedEvents.map(data=>"[%s,%s]".format(data("pickup_latitude").toString,data("pickup_longitude").toString))
+    val kafkaParams = Map[String, String]("metadata.broker.list" -> brokers)    
+    val u_messages = KafkaUtils.createDirectStream[String, String, StringDecoder, StringDecoder](ssc,kafkaParams, u_topicsSet).map(_._2).repartition(64)
+    val u_points = u_messages.map(x => parse(x))
+    val u_parsedEvents = u_messages.map(JSON.parseFull(_)).map(_.get.asInstanceOf[scala.collection.immutable.Map[String,Any]])
+    val u_events = u_parsedEvents.map(data=>"[%s,%s]".format(data("pickup_latitude").toString,data("pickup_longitude").toString))
 //    events.print()
+   
+    val c_messages = KafkaUtils.createDirectStream[String, String, StringDecoder, StringDecoder](ssc,kafkaParams, c_topicsSet).map(_._2).repartition(64)
+    val c_points = c_messages.map(x => parse(x))
+    val c_parsedEvents = c_messages.map(JSON.parseFull(_)).map(_.get.asInstanceOf[scala.collection.immutable.Map[String,Any]])
+    val c_events = c_parsedEvents.map(data=>"[%s,%s]".format(data("dropoff_latitude").toString,data("dropoff_longitude").toString))
+//    events.print()
+
+
+
+
+
 
 //  Checking Partitions
 //    println("partition size")
@@ -148,13 +160,16 @@ object KMeans {
       .setHalfLife(halfLife, timeUnit)
       .setRandomCenters(numDimensions, 0.0)
 
-    model.trainOn(events.map(Vectors.parse))
+    model.trainOn(u_events.map(Vectors.parse))
 //    print(model.latestModel().clusterCenters)
+    val latest = sc.broadcast(model.latestModel)
 
 
-    val predictions = model.predictOnValues(events.map(Vectors.parse).map(lp => (1.toDouble, lp)))
+    val u_predictions = model.predictOnValues(u_events.map(Vectors.parse).map(lp => (1.toDouble, lp)))
+    val c_predictions = model.predictOnValues(c_events.map(Vectors.parse).map(lp => (1.toDouble, lp)))
 
-    val tupleData = points.map(x => (compact(render(x \ "VendorID")).toDouble,
+
+    val u_tupleData = u_points.map(x => (compact(render(x \ "VendorID")).toDouble,
       (compact(render(x \ "pickup_latitude")).toDouble,
         compact(render(x \ "pickup_longitude")).toDouble,
         compact(render(x \ "timestamp")).split(" ") match {
@@ -163,22 +178,74 @@ object KMeans {
         )
       )
     )
-    tupleData.print()
+    u_tupleData.print()
+    val u_predFull = u_tupleData.join(u_predictions)
 
-//    compact(render(x \ "pickup_datetime")).toDouble,
-    val predFull = tupleData.join(predictions)
+    val c_tupleData = c_points.map(x => (compact(render(x \ "VendorID")).toDouble,
+      (compact(render(x \ "dropoff_latitude")).toDouble,
+        compact(render(x \ "dropoff_longitude")).toDouble,
+        compact(render(x \ "timestamp")).split(" ") match {
+                case Array(s1,s2, points @ _*) => ("%sT%s".format(s1,s2)).replace("\"", "")  //yyyy-MM-dd'T'HH:mm:ss.SSS
+              }
+        )
+      )
+    )
+    c_tupleData.print()
+    val c_predFull = c_tupleData.join(c_predictions)
 
 
-    val output = predFull.map(x => Map("cluster"->x._2._2,
+    val u_output = u_predFull.map(x => Map("cluster"->x._2._2,
       "location"-> Map("lat"->x._2._1._1, "lon"->x._2._1._2),
       "time_stamp"-> x._2._1._3)) //"time_stamp"-> "2017-02-20T02:12:13.610"
-    output.print()
+    u_output.print()
+
+    val c_output = c_predFull.map(x => Map("cluster"->x._2._2,
+      "location"-> Map("lat"->x._2._1._1, "lon"->x._2._1._2),
+      "time_stamp"-> x._2._1._3)) //"time_stamp"-> "2017-02-20T02:12:13.610"
+    c_output.print()
 
 
-    val clustercounts = predFull.map(x => x._2._2).countByValue()
-    clustercounts.print()
+    val u_clustercounts = u_predFull.map(x => x._2._2).countByValue()
+    u_clustercounts.print()
+
+    val c_clustercounts = c_predFull.map(x => x._2._2).countByValue()
+    c_clustercounts.print()
+
+    val counts_full = u_clustercounts.join(c_clustercounts)
+    counts_full.print()
+    val ratios = counts_full.map(x => (x._1,(x._2._1.toDouble/x._2._2.toDouble).toString))
+    ratios.print()
+
+    val distData = sc.parallelize(model.latestModel().clusterCenters.map(_.toArray))
+    
+    val nd = distData.map(_ match {
+    case Array(x , y, rest @ _*) => (x, y)//.toSeq
+    } )
+
+    nd.collect().foreach(println)
+
+    val clusts_full = nd.map(x => Map("cluster"->x._1,
+      "location"-> Map("lat"->x._2, "lon"->x._2)) )
+
+    clusts_full.collect().foreach(println)
+
+    nd.map(x=> print(x))
+
+    u_predictions.foreachRDD { rdd =>
+      // val arrayRDD = vectrdd.map(_.toArray())
+      val centers = model.latestModel().clusterCenters.map(_.toArray)
+      centers.foreach(println)
+      print(centers)
+      print(centers match {
+                case Array(s1,s2, points @ _*) => (s1,s2) })
+      print(latest.value)
+    }
 
 
+
+    model.latestModel().clusterCenters.zipWithIndex.foreach { case (center, idx) =>
+    println(s"Cluster Center ${idx}: ${center}")
+    }
 //     predictions.foreachRDD { rdd =>
 //       val modelString = model.latestModel().clusterCenters
 //         .map(c => c.toString.slice(1, c.toString.length-1)).mkString("\n")
@@ -198,12 +265,21 @@ object KMeans {
 //      )
 //    }
 
-predictions.foreachRDD { rdd =>
+u_predictions.foreachRDD { rdd =>
       val modelString = model.latestModel().clusterCenters
         .map(c => c.toString.slice(1, c.toString.length-1))
       val modelMap = modelString.map(x => Map("lat"->x,
       "lon"->x))
       print(modelMap)
+
+      val newmodelString = model.latestModel().clusterCenters
+        .map(c => c.toString.slice(1, c.toString.length-1))
+      print(newmodelString)
+
+      // val clust_cents_out = newmodelString.map(_.split(",").map(x => Map("location"-> Map("lat"->x, "lon"->x))))
+      // print(clust_cents_out)
+      // clust_cents_out.print() 
+
     }
 
 
@@ -219,16 +295,16 @@ predictions.foreachRDD { rdd =>
   //   (x._2._2,("\"{\"cluster\": %d, \"location\": {\"lat\":%f,\"lon\":%f},\"timestamp\":%s}\"".format(x._2._2, x._2._1._1, x._2._1._2, x._2._1._3)).parseJson)) // cluster, loc (lat,lon), ts
   // kafkaOutput.print()
 
-    val kafkaOutput = predFull.map(x => 
+    val u_kafkaOutput = u_predFull.map(x => 
     (x._2._2,"%s,%s,%s,%s".format(x._2._2, x._2._1._1, x._2._1._2, x._2._1._3))) // cluster, loc (lat,lon), ts
-  kafkaOutput.print()
+  u_kafkaOutput.print()
 
     // Seq(
     // """{"user":"helena","commits":98, "month":3, "year":2015}"""
 
 //    send(topic: String, key: String, value: String)
     val newtopic = "usersenriched"
-    kafkaOutput.foreachRDD { rdd =>
+    u_kafkaOutput.foreachRDD { rdd =>
       rdd.foreach { message =>
         kafkaSink.value.send(newtopic,message._1.toString, message._2)
       }
@@ -237,7 +313,7 @@ predictions.foreachRDD { rdd =>
 
 
     // Send Data to Elasticsearch
-    output.foreachRDD { rdd => {
+    u_output.foreachRDD { rdd => {
       rdd.saveToEs("realtime2/user")
     }
     }
