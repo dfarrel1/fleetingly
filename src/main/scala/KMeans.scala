@@ -132,8 +132,16 @@ object KMeans {
     val c_events = c_parsedEvents.map(data=>"[%s,%s]".format(data("dropoff_latitude").toString,data("dropoff_longitude").toString))
 //    events.print()
 
+  val c_events_for_filter = c_parsedEvents.map(data=>"%s,%s".format(data("dropoff_latitude").toString,data("dropoff_longitude").toString))
+  def c_checkRelevantGPS(line: String): Boolean=
+      {   val splits = line.split(",")
+          val lat = splits(0).toDouble
+          val lon = splits(1).toDouble
+          lat > 40 && lat < 42 && lon < -73 && lon < -75
+      }
 
-
+  val c_filt_events = c_events_for_filter.filter(c_checkRelevantGPS)
+  // c_filt_events.print()
 
 
 
@@ -213,39 +221,64 @@ object KMeans {
 
     val counts_full = u_clustercounts.join(c_clustercounts)
     counts_full.print()
-    val ratios = counts_full.map(x => (x._1,(x._2._1.toDouble/x._2._2.toDouble).toString))
+    val ratios = counts_full.map(x => (x._1,((x._2._1.toDouble/x._2._2.toDouble).toString,x._2._1.toString,x._2._2.toString)))
     ratios.print()
 
-    val distData = sc.parallelize(model.latestModel().clusterCenters.map(_.toArray))
-    
-    val nd = distData.map(_ match {
-    case Array(x , y, rest @ _*) => (x, y)//.toSeq
-    } )
+    u_predictions.foreachRDD { rdd => 
+      val cents = model.latestModel().clusterCenters.map(_.toArray)
+      match {case Array(s1, points @ _*) => (s1.toString) }  
+      val clust_keys = (0 to model.latestModel().clusterCenters.map(_.toArray).length)
+      // val clusts_full = clust_keys zip cents
+      println(s"First Attempt: Cluster Centers")
+      cents.foreach(println)
+      println(s"Size:")
+      println(cents.size.toString)
+    }
+    //zip counts_full zip ratios
+        
+    // val dist_data = sc.parallelize(cents)   
+    // val nd = dist_data.map(_ match {
+    // case Array(x , y, rest @ _*) => (x, y)//.toSeq
+    // } )
+    // nd.collect().foreach(println)
 
-    nd.collect().foreach(println)
+    // val clusts_ready = nd.map(x => Map("cluster"->x._1,
+    //   "location"-> Map("lat"->x._2, "lon"->x._2)) )
+    // clusts_ready.collect().foreach(println)
+    // val loaded_clust_info = counts_full.join(ratios)
 
-    val clusts_full = nd.map(x => Map("cluster"->x._1,
-      "location"-> Map("lat"->x._2, "lon"->x._2)) )
-
-    clusts_full.collect().foreach(println)
-
-    nd.map(x=> print(x))
-
-    u_predictions.foreachRDD { rdd =>
+    ratios.foreachRDD { rdd =>
       // val arrayRDD = vectrdd.map(_.toArray())
-      val centers = model.latestModel().clusterCenters.map(_.toArray)
-      centers.foreach(println)
-      print(centers)
-      print(centers match {
-                case Array(s1,s2, points @ _*) => (s1,s2) })
-      print(latest.value)
+      // val centers = model.latestModel().clusterCenters.map(_.toArray)
+      // centers.foreach(println)
+      // print(centers)
+      // print(centers match {
+      //           case Array(s1,s2, points @ _*) => (s1,s2) })
+      // print(latest.value)
+      model.latestModel().clusterCenters.zipWithIndex.foreach { case (center, idx) =>
+      println(s"Cluster Center ${idx}: ${center}")
+    }
+
+      val keyed_clusts = model.latestModel().clusterCenters.zipWithIndex.map(_ match { case (center, idx) =>
+      (idx, (center(0).toString, center(1).toString))
+      })
+      keyed_clusts.foreach(println)
+      val par_clusts = sc.parallelize(keyed_clusts)
+
+      val clusts_full = rdd.join(par_clusts)
+
+      val clusts_string = clusts_full.map(p => p.toString).collect().mkString("\n")
+      print(clusts_string)
+
+      val clusts_output = clusts_full.map(x => Map("cluster"->x._1,
+      "ratio"->x._2._1._1,"u_count"->x._2._1._2,"u_count"->x._2._1._3,
+      "location"-> Map("lat"->x._2._2._1, "lon"->x._2._2._2)))
+      clusts_output.saveToEs("clusters/cluster")
     }
 
 
 
-    model.latestModel().clusterCenters.zipWithIndex.foreach { case (center, idx) =>
-    println(s"Cluster Center ${idx}: ${center}")
-    }
+
 //     predictions.foreachRDD { rdd =>
 //       val modelString = model.latestModel().clusterCenters
 //         .map(c => c.toString.slice(1, c.toString.length-1)).mkString("\n")
@@ -254,6 +287,7 @@ object KMeans {
 // //      Utils.printToFile(outputDir, dateString + "-model", modelString)
 // //      Utils.printToFile(outputDir, dateString + "-predictions", predictString)
 //       print(modelString)
+//       print(modelString.size)
 //       // print(predictString)
 //     }
 
@@ -266,15 +300,15 @@ object KMeans {
 //    }
 
 u_predictions.foreachRDD { rdd =>
-      val modelString = model.latestModel().clusterCenters
-        .map(c => c.toString.slice(1, c.toString.length-1))
-      val modelMap = modelString.map(x => Map("lat"->x,
-      "lon"->x))
-      print(modelMap)
+      // val modelString = model.latestModel().clusterCenters
+      //   .map(c => c.toString.slice(1, c.toString.length-1))
+      // val modelMap = modelString.map(x => Map("lat"->x,
+      // "lon"->x))
+      // print(modelMap)
 
-      val newmodelString = model.latestModel().clusterCenters
-        .map(c => c.toString.slice(1, c.toString.length-1))
-      print(newmodelString)
+      // val newmodelString = model.latestModel().clusterCenters
+      //   .map(c => c.toString.slice(1, c.toString.length-1))
+      // print(newmodelString)
 
       // val clust_cents_out = newmodelString.map(_.split(",").map(x => Map("location"-> Map("lat"->x, "lon"->x))))
       // print(clust_cents_out)
@@ -315,6 +349,11 @@ u_predictions.foreachRDD { rdd =>
     // Send Data to Elasticsearch
     u_output.foreachRDD { rdd => {
       rdd.saveToEs("realtime2/user")
+    }
+    }
+
+    c_output.foreachRDD { rdd => {
+      rdd.saveToEs("realtime2/car")
     }
     }
 
