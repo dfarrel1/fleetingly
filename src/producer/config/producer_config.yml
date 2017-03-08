@@ -1,5 +1,6 @@
 # Configuration parameters for Kafka Producer
-port: ec2-34-193-153-112.compute-1.amazonaws.com:9092
+#port: ec2-34-193-153-112.compute-1.amazonaws.com:9092 #de-ny-dene-02
+port: ec2-34-206-32-123.compute-1.amazonaws.com:9092 #de-ny-dene-03
 # topics: [cars,users]
 topics: ['cars','users']
 time_buffer: 1

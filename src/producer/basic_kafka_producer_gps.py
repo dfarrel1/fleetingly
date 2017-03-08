@@ -13,7 +13,7 @@ class Producer(object):
         self.client = SimpleClient(addr)
         self.producer = KeyedProducer(self.client)
 
-    def produce_msgs(self, source_symbol, data_file='/home/ubuntu//insight-taxi-pulse/test_data/test_data_30.csv'):
+    def produce_msgs(self, source_symbol, data_file='/home/ubuntu/fleetingly/data/test_data_30.csv'):
         with open(data_file,'rb') as f:
             reader = csv.reader(f)
             row1 = next(reader)
