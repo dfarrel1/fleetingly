@@ -75,12 +75,14 @@ object KMeans {
 
     val conf = new SparkConf().setMaster("local[12]").setAppName("KMeansDemo")
        .set("es.index.auto.create", "true")
-       .set("es.nodes", "ec2-34-193-153-112.compute-1.amazonaws.com")
+       .set("es.nodes", "ec2-34-206-32-123.compute-1.amazonaws.com")
        .set("es.port", "9200")
        .set("es.net.http.auth.user", "elastic")
        .set("es.net.http.auth.pass", "changeme")
        .set("spark.es.nodes.discovery","false")
        .set("spark.es.http.timeout","5m")
+        
+        //ec2-34-193-153-112.compute-1.amazonaws.com //de-ny-dene-02
 
 
     val ssc = new StreamingContext(conf, Seconds(batchDuration))
