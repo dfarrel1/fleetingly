@@ -1,0 +1,12 @@
+purchase_type: on_demand
+subnet_id: subnet-5b436112 
+price: 1.13
+num_instances: 3
+key_name: dene-farrell 
+security_group_ids: sg-a2b775de
+instance_type: m4.xlarge
+tag_name: de-ny-dene-03
+vol_size: 100
+role: worker 
+use_eips: true
+
