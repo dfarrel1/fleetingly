@@ -104,7 +104,7 @@ object KMeans {
 //  writeToKafka
     val producerConfig = {
       val p = new Properties()
-      p.setProperty("bootstrap.servers", "ec2-34-193-153-112.compute-1.amazonaws.com:9092")
+      p.setProperty("bootstrap.servers", "ec2-34-206-32-123.compute-1.amazonaws.com:9092")
       p.setProperty("key.serializer", classOf[StringSerializer].getName)
       p.setProperty("value.serializer", classOf[StringSerializer].getName)
       p
