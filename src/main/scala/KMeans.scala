@@ -29,7 +29,6 @@ import org.json4s.jackson.JsonMethods._
 import org.json4s.JsonDSL._
 import com.codahale.jerkson.Json
 import scala.util.parsing.json._
-// import play.api.libs.json._
 import spray.json._
 import DefaultJsonProtocol._ 
 
@@ -99,11 +98,6 @@ object KMeans {
 
 
 
-// EXAMPLES: Test Direct to ES - needs auth
-//     val numbers = Map("one" -> 1, "two" -> 2, "three" -> 3)
-//     val airports = Map("arrival" -> "Otopeni", "SFO" -> "San Fran")
-//     sc.makeRDD(Seq(numbers, airports)).saveToEs("newtest/docs")
-//     val RDD = sc.esRDD("users/user")
 
 
 //  for writeToKafka Utility // using KafkaSink Now
@@ -126,19 +120,20 @@ object KMeans {
 //    val trainingData = ssc.textFileStream(inputDir).map(Vectors.parse)
 //    trainingData.print()
 
+
     // Create direct kafka stream with brokers and topics - uncomment partitioning to increase throughput
     val kafkaParams = Map[String, String]("metadata.broker.list" -> brokers)    
     val u_messages = KafkaUtils.createDirectStream[String, String, StringDecoder, StringDecoder](ssc,kafkaParams, u_topicsSet).map(_._2)//.repartition(64)
     val u_points = u_messages.map(x => parse(x))
     val u_parsedEvents = u_messages.map(JSON.parseFull(_)).map(_.get.asInstanceOf[scala.collection.immutable.Map[String,Any]])
     val u_events = u_parsedEvents.map(data=>"[%s,%s]".format(data("pickup_latitude").toString,data("pickup_longitude").toString))
-//    events.print()
+
    
     val c_messages = KafkaUtils.createDirectStream[String, String, StringDecoder, StringDecoder](ssc,kafkaParams, c_topicsSet).map(_._2)//.repartition(64)
     val c_points = c_messages.map(x => parse(x))
     val c_parsedEvents = c_messages.map(JSON.parseFull(_)).map(_.get.asInstanceOf[scala.collection.immutable.Map[String,Any]])
     val c_events = c_parsedEvents.map(data=>"[%s,%s]".format(data("dropoff_latitude").toString,data("dropoff_longitude").toString))
-//    events.print()
+
 
 
 
@@ -150,7 +145,7 @@ object KMeans {
       {   val splits = line.split(",")
           val lat = splits(0).toDouble
           val lon = splits(1).toDouble
-          lat > 40 && lat < 42 && lon < -73 && lon < -75
+          lat > 40 && lat < 42 && lon < -73 && lon > -75
       }
 
   val c_filt_events = c_events_for_filter.map(line => line.split(",")).
@@ -264,7 +259,7 @@ object KMeans {
 
 
 
-
+    // Send Clusters to Elasticsearch
     ratios.foreachRDD { rdd =>
       model.latestModel().clusterCenters.zipWithIndex.foreach { case (center, idx) =>
       println(s"Cluster Center ${idx}: ${center}")

@@ -1,4 +1,0 @@
-# Configuration parameters for Kafka Producer
-# Configuration parameters for Kafka Producer
-port: ec2-34-193-153-112.compute-1.amazonaws.com:9092
-topics: ['stream_cars','stream_users',]

@@ -1,0 +1,169 @@
+kibana-console-tests.txt
+
+GET /
+
+POST /my-index/my-type/1
+{
+  "body": "foo"
+}
+
+GET /my-index/my-type/1
+
+GET /my-index/_search
+{
+  "query": {
+    "match": {
+      "body": "foo"
+    }
+  }
+}
+
+
+PUT /attractions
+{
+  "mappings": {
+    "restaurant": {
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "location": {
+          "type": "geo_point"
+        }
+      }
+    }
+  }
+}
+
+
+PUT /attractions/restaurant/1
+{
+  "name":     "Chipotle Mexican Grill",
+  "location": "40.715, -74.011" 
+}
+
+PUT /attractions/restaurant/2
+{
+  "name":     "Pala Pizza",
+  "location": { 
+    "lat":     40.722,
+    "lon":    -73.989
+  }
+}
+
+PUT /attractions/restaurant/3
+{
+  "name":     "Mini Munchies Pizza",
+  "location": [ -73.983, 40.719 ] 
+}
+
+
+
+GET /attractions/restaurant/_search
+{
+  "query": {
+    "bool": {
+      "filter": {
+        "geo_bounding_box": {
+          "location": { 
+            "top_left": {
+              "lat":  40.8,
+              "lon": -74.0
+            },
+            "bottom_right": {
+              "lat":  40.7,
+              "lon": -73.0
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+PUT /timetest
+{
+  "mappings":{
+    "user":{
+      "_source": { "enabled": true },
+        "properties": {
+        "pick_location": {"type": "geo_point"},
+        "drop_location": {"type": "geo_point"},
+        "timestamp":     {"type": "date",    "doc_values": true, "format": "yyyy-MM-dd HH:mm:ss.SSS"}
+            }
+        }
+      }
+    }
+  }
+  
+  PUT /timetest/user/1
+  {
+    "text": "heliotrope halcyon amarinthine.",
+  "pick_location": { 
+    "lat": 41.12,
+    "lon": -71.34
+  },
+    "drop_location": { 
+    "lat": 41.12,
+    "lon": -71.34
+  },
+    "timestamp": "2017-02-04 19:36:11.371"
+}
+
+
+   
+DELETE my_index   
+   
+PUT my_index
+{
+  "mappings": {
+    "my_type": {
+      "properties": {
+        "location": {
+          "type": "geo_point"
+        }
+      }
+    }
+  }
+}    
+    
+PUT my_index/my_type/1
+{
+  "text": "Geo-point as an object",
+  "location": { 
+    "lat": 41.12,
+    "lon": -71.34
+  }
+}
+
+PUT my_index/my_type/2
+{
+  "text": "Geo-point as a string",
+  "location": "41.12,-71.34" 
+}
+
+PUT my_index/my_type/3
+{
+  "text": "Geo-point as a geohash",
+  "location": "drm3btev3e86" 
+}
+
+GET my_index/_search
+{
+  "query": {
+    "geo_bounding_box": { 
+      "location": {
+        "top_left": {
+          "lat": 42,
+          "lon": -72
+        },
+        "bottom_right": {
+          "lat": 40,
+          "lon": -74
+        }
+      }
+    }
+  }
+}
+
+

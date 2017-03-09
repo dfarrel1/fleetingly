@@ -1,0 +1,34 @@
+{
+  "cars":{
+    "settings" : {
+      "number_of_shards" : 3,
+      "number_of_replicas" : 3 },
+
+  "mappings":{
+    "car":{
+      "_source": { "enabled": true },
+      "properties": {
+        "pick_location": {"type": "geo_point"},
+        "drop_location": {"type": "geo_point"},
+        "times_tamp":    { "type": "date",    "doc_values": true,"format": "yyyy-MM-dd HH:mm:ss.SSS"}
+            }
+        }
+    }
+  },
+  "users":{
+    "settings" : {
+      "number_of_shards" : 3,
+      "number_of_replicas" : 3 },
+
+  "mappings":{
+    "user":{
+      "_source": { "enabled": true },
+      "properties": {
+        "pick_location": {"type": "geo_point"},
+        "drop_location": {"type": "geo_point"},
+        "time_stamp":    { "type": "date",  "doc_values": true,"format": "yyyy-MM-dd HH:mm:ss.SSS" }
+            }
+        }
+    }
+  }
+}

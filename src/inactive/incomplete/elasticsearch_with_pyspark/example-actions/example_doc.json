@@ -1,0 +1,11 @@
+{
+    "email":      "john@smith.com",
+    "first_name": "John",
+    "last_name":  "Smith",
+    "info": {
+        "bio":         "Eco-warrior and defender of the weak",
+        "age":         25,
+        "interests": [ "dolphins", "whales" ]
+    },
+    "join_date": "2014/05/01"
+}

@@ -1,0 +1,4 @@
+# Configuration parameters for Kafka Consumer
+port: ec2-34-193-153-112.compute-1.amazonaws.com:9092
+topics: ['cars','users']
+namenodeip: '34.193.153.112'
