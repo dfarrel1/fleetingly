@@ -144,7 +144,7 @@ object KMeans {
 
   val c_filt_events = c_events_for_filter.filter(c_checkRelevantGPS)
   c_filt_events.print()
-  exit()
+  System.exit()
 
 
 
