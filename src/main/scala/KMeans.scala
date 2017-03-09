@@ -142,7 +142,7 @@ object KMeans {
           lat > 40 && lat < 42 && lon < -73 && lon < -75
       }
 
-  val c_filt_events = c_events_for_filter.map(line => line.split(",")).filter(x => x(0).toDouble > 40 && x(0).toDouble < 40.77).map(x => Arrays.toString(x))
+  val c_filt_events = c_events_for_filter.map(line => line.split(",")).filter(x => x(0).toDouble > 40 && x(0).toDouble < 40.77)
 
 //    c_filt_events.foreachRDD { rdd =>
 //      print("c_filt")
