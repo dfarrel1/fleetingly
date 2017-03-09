@@ -149,7 +149,7 @@ object KMeans {
 //      rdd.foreach(println)
 //                            }
 
-    c_filt_events.map(line => line.toString()).print()
+    c_filt_events.map(line => line(0)).print()
       
 
 
