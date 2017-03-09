@@ -49,10 +49,12 @@ import scala.concurrent.ExecutionContext.Implicits.global
 
 
 /**
- * Demo of streaming k-means with Spark Streaming.
- * Reads data from one directory, and sends to  --> Kafka
+ * Demo of streaming K-means with Spark Streaming.
+ * Reads data from HDFS and/or Kafka, Processes KMeans and sends back to --> Kafka under new topics
  * Also sends to -> ES
- *
+ * Author: Dene Farrell
+ * Date: March 8, 2017
+ * Created At: Insight Data Science - Data Engineering Fellows Program
  */
 
 object KMeans {
@@ -63,9 +65,11 @@ object KMeans {
 
   def main(args: Array[String]) {
 
-//    For reading batches from HDFS
+//    For reading batches from HDFS // Not using in pipeline currently
     val inputDir = "hdfs://ec2-34-193-153-112.compute-1.amazonaws.com:9000/user/fleetingly/history"
     val outputDir = "hdfs://ec2-34-193-153-112.compute-1.amazonaws.com:9000/user/fleetingly/models"
+
+//    KMeans Cluster Parameters
     val batchDuration = 5
     val numClusters = 8
     val numDimensions = 2
@@ -95,13 +99,14 @@ object KMeans {
 
 
 
-// FOR Direct to ES - needs auth
+// EXAMPLES: Test Direct to ES - needs auth
 //     val numbers = Map("one" -> 1, "two" -> 2, "three" -> 3)
 //     val airports = Map("arrival" -> "Otopeni", "SFO" -> "San Fran")
 //     sc.makeRDD(Seq(numbers, airports)).saveToEs("newtest/docs")
 //     val RDD = sc.esRDD("users/user")
 
-//  writeToKafka
+
+//  for writeToKafka Utility // using KafkaSink Now
     val producerConfig = {
       val p = new Properties()
       p.setProperty("bootstrap.servers", "ec2-34-206-32-123.compute-1.amazonaws.com:9092")
@@ -116,11 +121,12 @@ object KMeans {
 //      s => new ProducerRecord[String, String](topic, s)
 //    )
 
+
 //    FROM HDFS:
 //    val trainingData = ssc.textFileStream(inputDir).map(Vectors.parse)
 //    trainingData.print()
 
-    // Create direct kafka stream with brokers and topics
+    // Create direct kafka stream with brokers and topics - uncomment partitioning to increase throughput
     val kafkaParams = Map[String, String]("metadata.broker.list" -> brokers)    
     val u_messages = KafkaUtils.createDirectStream[String, String, StringDecoder, StringDecoder](ssc,kafkaParams, u_topicsSet).map(_._2)//.repartition(64)
     val u_points = u_messages.map(x => parse(x))
@@ -134,22 +140,25 @@ object KMeans {
     val c_events = c_parsedEvents.map(data=>"[%s,%s]".format(data("dropoff_latitude").toString,data("dropoff_longitude").toString))
 //    events.print()
 
-  val c_events_for_filter = c_parsedEvents.map(data=>"%s,%s".format(data("dropoff_latitude").toString,data("dropoff_longitude").toString))
-  def c_checkRelevantGPS(line: String): Boolean=
+
+
+//  Filtering out bad GPS Data
+    val c_events_for_filter = c_parsedEvents.map(data=>"%s,%s".format(data("dropoff_latitude").toString,data("dropoff_longitude").toString))
+
+//  in progress -- filter function // Did not yet get this to work
+    def c_checkRelevantGPS(line: String): Boolean=
       {   val splits = line.split(",")
           val lat = splits(0).toDouble
           val lon = splits(1).toDouble
           lat > 40 && lat < 42 && lon < -73 && lon < -75
       }
 
-  val c_filt_events = c_events_for_filter.map(line => line.split(",")).filter(x => x(0).toDouble > 40 && x(0).toDouble < 40.77)
+  val c_filt_events = c_events_for_filter.map(line => line.split(",")).
+    filter(x => x(0).toDouble > 39 && x(0).toDouble < 41 &&
+    x(1).toDouble < -73 && x(1).toDouble > -75)
 
-//    c_filt_events.foreachRDD { rdd =>
-//      print("c_filt")
-//      rdd.foreach(println)
-//                            }
 
-    c_filt_events.map(line => line(0)).print()
+    c_filt_events.map(line => (line(0),line(1))).print()
       
 
 
@@ -173,6 +182,8 @@ object KMeans {
 
 
 
+
+// Create KMeans Model
     val model = new StreamingKMeans()
       .setK(numClusters)
       .setHalfLife(halfLife, timeUnit)
@@ -187,6 +198,9 @@ object KMeans {
     val c_predictions = model.predictOnValues(c_events.map(Vectors.parse).map(lp => (1.toDouble, lp)))
 
 
+
+//   Extracting Only the Data that I'm Using
+//   Converting to Tuples just to make things simpler
     val u_tupleData = u_points.map(x => (compact(render(x \ "VendorID")).toDouble,
       (compact(render(x \ "pickup_latitude")).toDouble,
         compact(render(x \ "pickup_longitude")).toDouble,
@@ -197,6 +211,8 @@ object KMeans {
       )
     )
     u_tupleData.print()
+
+//  Enrich the user data with the cluster assignments
     val u_predFull = u_tupleData.join(u_predictions)
 
     val c_tupleData = c_points.map(x => (compact(render(x \ "VendorID")).toDouble,
@@ -208,6 +224,7 @@ object KMeans {
         )
       )
     )
+
     c_tupleData.print()
     val c_predFull = c_tupleData.join(c_predictions)
 
@@ -244,27 +261,11 @@ object KMeans {
       println(s"Size:")
       println(cents.size.toString)
     }
-    //zip counts_full zip ratios
-        
-    // val dist_data = sc.parallelize(cents)   
-    // val nd = dist_data.map(_ match {
-    // case Array(x , y, rest @ _*) => (x, y)//.toSeq
-    // } )
-    // nd.collect().foreach(println)
 
-    // val clusts_ready = nd.map(x => Map("cluster"->x._1,
-    //   "location"-> Map("lat"->x._2, "lon"->x._2)) )
-    // clusts_ready.collect().foreach(println)
-    // val loaded_clust_info = counts_full.join(ratios)
+
+
 
     ratios.foreachRDD { rdd =>
-      // val arrayRDD = vectrdd.map(_.toArray())
-      // val centers = model.latestModel().clusterCenters.map(_.toArray)
-      // centers.foreach(println)
-      // print(centers)
-      // print(centers match {
-      //           case Array(s1,s2, points @ _*) => (s1,s2) })
-      // print(latest.value)
       model.latestModel().clusterCenters.zipWithIndex.foreach { case (center, idx) =>
       println(s"Cluster Center ${idx}: ${center}")
     }
@@ -288,7 +289,7 @@ object KMeans {
 
 
 
-
+// Use to write data to filesystem:
 //     predictions.foreachRDD { rdd =>
 //       val modelString = model.latestModel().clusterCenters
 //         .map(c => c.toString.slice(1, c.toString.length-1)).mkString("\n")
@@ -301,7 +302,8 @@ object KMeans {
 //       // print(predictString)
 //     }
 
-//    // Using Package WriteToKafka
+
+//    // For Using Package WriteToKafka --- No Longer Using
 //    predictions.foreachRDD { rdd =>
 //      rdd.map(_.toString).writeToKafka(
 //        producerConfig,
@@ -309,44 +311,19 @@ object KMeans {
 //      )
 //    }
 
-u_predictions.foreachRDD { rdd =>
-      // val modelString = model.latestModel().clusterCenters
-      //   .map(c => c.toString.slice(1, c.toString.length-1))
-      // val modelMap = modelString.map(x => Map("lat"->x,
-      // "lon"->x))
-      // print(modelMap)
 
-      // val newmodelString = model.latestModel().clusterCenters
-      //   .map(c => c.toString.slice(1, c.toString.length-1))
-      // print(newmodelString)
-
-      // val clust_cents_out = newmodelString.map(_.split(",").map(x => Map("location"-> Map("lat"->x, "lon"->x))))
-      // print(clust_cents_out)
-      // clust_cents_out.print() 
-
-    }
 
 
 //    // Parallelizing Kafka Producer Efficiently
     val kafkaSink = sc.broadcast(SparkKafkaSink(producerConfig))
 
 
-  // val kafkaOutput = predFull.map(x => 
-  //   (x._2._2,"{\"cluster\": %d, \"lat\":%f,\"lon\":%f,\"timestamp\":%s}".format(x._2._2, x._2._1._1, x._2._1._2, x._2._1._3))) // cluster, loc (lat,lon), ts
-  // kafkaOutput.print()
-
-  // val kafkaOutput = predFull.map(x => 
-  //   (x._2._2,("\"{\"cluster\": %d, \"location\": {\"lat\":%f,\"lon\":%f},\"timestamp\":%s}\"".format(x._2._2, x._2._1._1, x._2._1._2, x._2._1._3)).parseJson)) // cluster, loc (lat,lon), ts
-  // kafkaOutput.print()
-
     val u_kafkaOutput = u_predFull.map(x => 
     (x._2._2,"%s,%s,%s,%s".format(x._2._2, x._2._1._1, x._2._1._2, x._2._1._3))) // cluster, loc (lat,lon), ts
   u_kafkaOutput.print()
 
-    // Seq(
-    // """{"user":"helena","commits":98, "month":3, "year":2015}"""
 
-//    send(topic: String, key: String, value: String)
+//  use format:   send(topic: String, key: String, value: String)
     val newtopic = "usersenriched"
     u_kafkaOutput.foreachRDD { rdd =>
       rdd.foreach { message =>
