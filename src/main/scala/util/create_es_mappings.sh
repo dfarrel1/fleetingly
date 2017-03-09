@@ -28,6 +28,40 @@ curl --user elastic:changeme -XPUT 'http://localhost:9200/realtime2' -d '
 '
 
 
+#curl --user elastic:changeme -XPUT 'http://localhost:9200/realtime2' -d '
+#  {
+#    "mappings": {
+#      "user": {
+#        "properties": {
+#          "cluster": {
+#            "type": "integer"
+#          },
+#          "location": {
+#            "type": "geo_point"
+#          },
+#         "time_stamp":    { "type": "date", "format": "date_hour_minute_second_millis"}
+#          }
+#        },
+#    "car": {
+#        "properties": {
+#          "cluster": {
+#            "type": "integer"
+#          },
+#          "location": {
+#            "type": "geo_point"
+#          },
+#         "time_stamp":    { "type": "date", "format": "date_hour_minute_second_millis"}
+#          }
+#        }
+#      }
+#    }
+#  }
+#
+#'
+
+
+
+
 
 
 curl --user elastic:changeme -XPUT 'http://localhost:9200/clusters' -d '

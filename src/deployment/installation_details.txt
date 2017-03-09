@@ -1,0 +1,15 @@
+###Installation Details
+git clone https://github.com/dfarrel1/fleetingly.git
+
+### Needs ElasticSearch jar
+cd fleetingly
+mkdir lib
+cd lib
+wget  http://central.maven.org/maven2/org/elasticsearch/elasticsearch-hadoop/5.2.1/elasticsearch-hadoop-5.2.1.jar
+
+### Modify Kibana kibana.yml file to zoom in with tilemap:
+vim  /usr/local/kibana/config/kibana.yml 
+
+### add to bottom of file:
+tilemap.options.maxZoom: 18
+tilemap.url: http://a.tile.openstreetmap.org/{z}/{x}/{y}.png
