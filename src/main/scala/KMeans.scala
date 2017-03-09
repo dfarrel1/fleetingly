@@ -144,7 +144,7 @@ object KMeans {
 
   val c_filt_events = c_events_for_filter.filter(c_checkRelevantGPS)
   c_filt_events.foreachRDD { rdd =>
-      print('c_filt')
+      print("c_filt")
       rdd.print()
                             }
       
