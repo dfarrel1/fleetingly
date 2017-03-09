@@ -142,7 +142,7 @@ object KMeans {
           lat > 40 && lat < 42 && lon < -73 && lon < -75
       }
 
-  val c_filt_events = c_events_for_filter.filter(c_checkRelevantGPS)
+  val c_filt_events = c_events_for_filter.filter(_._2._1>40 && _._2._1<40.77)
 
     c_events_for_filter.foreachRDD { rdd =>
       print("c_filt")
