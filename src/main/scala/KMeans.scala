@@ -122,13 +122,13 @@ object KMeans {
 
     // Create direct kafka stream with brokers and topics
     val kafkaParams = Map[String, String]("metadata.broker.list" -> brokers)    
-    val u_messages = KafkaUtils.createDirectStream[String, String, StringDecoder, StringDecoder](ssc,kafkaParams, u_topicsSet).map(_._2).repartition(64)
+    val u_messages = KafkaUtils.createDirectStream[String, String, StringDecoder, StringDecoder](ssc,kafkaParams, u_topicsSet).map(_._2)//.repartition(64)
     val u_points = u_messages.map(x => parse(x))
     val u_parsedEvents = u_messages.map(JSON.parseFull(_)).map(_.get.asInstanceOf[scala.collection.immutable.Map[String,Any]])
     val u_events = u_parsedEvents.map(data=>"[%s,%s]".format(data("pickup_latitude").toString,data("pickup_longitude").toString))
 //    events.print()
    
-    val c_messages = KafkaUtils.createDirectStream[String, String, StringDecoder, StringDecoder](ssc,kafkaParams, c_topicsSet).map(_._2).repartition(64)
+    val c_messages = KafkaUtils.createDirectStream[String, String, StringDecoder, StringDecoder](ssc,kafkaParams, c_topicsSet).map(_._2)//.repartition(64)
     val c_points = c_messages.map(x => parse(x))
     val c_parsedEvents = c_messages.map(JSON.parseFull(_)).map(_.get.asInstanceOf[scala.collection.immutable.Map[String,Any]])
     val c_events = c_parsedEvents.map(data=>"[%s,%s]".format(data("dropoff_latitude").toString,data("dropoff_longitude").toString))
