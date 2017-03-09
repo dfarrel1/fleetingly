@@ -144,7 +144,7 @@ object KMeans {
 
   val c_filt_events = c_events_for_filter.map(line => line.split(",")).filter(x => x(0).toDouble > 40 && x(0).toDouble < 40.77)
 
-    c_events_for_filter.foreachRDD { rdd =>
+    c_filt_events.foreachRDD { rdd =>
       print("c_filt")
       rdd.foreach(println)
                             }
